@@ -50,8 +50,10 @@ services:
       - .env
     environment:
       PYTHONUNBUFFERED: 1
+      PYTHONPATH: /app
       DATABASE_URL_MASTER: ${DATABASE_URL_MASTER}
       DATABASE_URL_SENSOR: ${DATABASE_URL_SENSOR}
+    working_dir: /app
     volumes:
       - ./app:/app:delegated
     ports:
