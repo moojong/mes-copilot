@@ -1,0 +1,68 @@
+
+services:
+  db_master:
+    image: ankane/pgvector:v0.5.1
+    restart: always
+    env_file:
+      - .env
+    container_name: mes_db_master
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB_MASTER}
+    ports:
+      - "${POSTGRES_MASTER_PORT}:5432"
+    volumes:
+      - db_master_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB_MASTER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db_sensor:
+    image: ankane/pgvector:v0.5.1
+    restart: always
+    env_file:
+      - .env
+    container_name: mes_db_sensor
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB_SENSOR}
+    ports:
+      - "${POSTGRES_SENSOR_PORT}:5432"
+    volumes:
+      - db_sensor_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB_SENSOR}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  fastapi:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: mes_fastapi
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PYTHONUNBUFFERED: 1
+      DATABASE_URL_MASTER: ${DATABASE_URL_MASTER}
+      DATABASE_URL_SENSOR: ${DATABASE_URL_SENSOR}
+    volumes:
+      - ./app:/app:delegated
+    ports:
+      - "${FASTAPI_PORT}:8000"
+    depends_on:
+      db_master:
+        condition: service_healthy
+      db_sensor:
+        condition: service_healthy
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  db_master_data:
+  db_sensor_data:
